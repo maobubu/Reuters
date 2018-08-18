@@ -42,7 +42,7 @@ class news_Reuters:
                 data = response.text
                 # print data #NEWLINEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEe
                 soup = BeautifulSoup(data, 'html.parser')
-                has_content = len(soup.find_all("div", {'class': ['topStory', 'feature']}))
+                has_content = len(soup.find_all("div", {'class': ['topStory', 'featuere']}))
                 break
             except Exception as e:
                 print("Content exception:{}".format(str(e)))
@@ -68,8 +68,8 @@ class news_Reuters:
             today = datetime.datetime.today().strftime("%Y%m%d")
             ticker_failed.write(ticker + ',' + today + ',' + 'LOWEST\n')
         ticker_failed.close()
-        with open('reuters/' + ticker + '.json', 'w') as fout:
-            json.dump(self._second, fout, indent=2)
+        #with open('reuters/' + ticker + '.json', 'w') as fout:
+        #    json.dump(self._second, fout, indent=2)
 
     def repeatdownload(self, ticker, line, url, timestamp):
         new_time = timestamp[4:] + timestamp[:4]  # change 20151231 to 12312015 to match reuters format
@@ -114,12 +114,14 @@ class news_Reuters:
             else:
                 news_type = 'normal'
             d["news_type"] = news_type
-            first.append(d)
+            ## remove redundant file
+            # first.append(d)
             o_data = collections.OrderedDict(d)
             with open('reuters_new/'+ticker+'.json', 'a+') as f:
                 json.dump(o_data, f)
                 f.write('\r')
-            self._second[timestamp] = first
+            # don't put news into self._second
+            # self._second[timestamp] = first
             print(ticker, timestamp, title, news_type)
         return 1
 
@@ -129,15 +131,16 @@ class news_Reuters:
         for _ in range(repeat_times):
             try:
                 body = list()
-                article = content.find('a').get('href')
-                url = 'https://www.reuters.com' + article
+                articl = content.find('a').get('href')
+                url = 'https://www.reuters.com' + articl
                 response = requests.get(url, headers=self._user_agent)
                 data = response.text
                 # response = urllib.request.urlopen(url)
                 # data = response.read()
                 # print data #NEWLINEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEe
                 soup = BeautifulSoup(data, 'html.parser')
-                information = soup.find_all("p", {'class': ['MegaArticleBody_first-p_2htdt', '']})
+                information = soup.find_all("div", {'class': ['StandardArticleBody_body', '']})
+                #information = soup.find_all("p", {'class': ['MegaArticleBody_first-p_2htdt', '']})
                 for i in range(len(information)):
                     body.append(information[i].get_text())
                 final = ''.join(body)
@@ -152,15 +155,16 @@ class news_Reuters:
     def check(self, ticker, url):
         for _ in range(2):  # repeat in case of http failure
             try:
+                #response = requests.get("https://www.reuters.com/finance/stocks/company-news/AEP.O")
                 response = requests.get(url, headers=self._user_agent)
                 data = response.text
                 # response = urllib.request.urlopen(url)
                 # data = response.read()
                 soup = BeautifulSoup(data, 'html.parser')
-                if len(soup.find_all("div", {'class': 'no-result'})) != 0:
+                if soup.find_all("div", {'class': 'no-result'}):
                     url = "https://www.reuters.com/finance/stocks/company-news/" + ticker + '.A'
                     continue
-                if len(soup.find_all("div", {'class': 'no-result'})) == 0:
+                if not soup.find_all("div", {'class': 'no-result'}):
                     break
                 else:
                     url = "https://www.reuters.com/finance/stocks/company-news/" + ticker + '.N'
@@ -181,12 +185,12 @@ def dateGenerator(numdays, base=datetime.datetime.today()):  # generate N days u
 def main():
     start = timeit.default_timer()
     name, ruozhi = list(), list()
-    datelist = dateGenerator(30)  # look back on the past X days
+    datelist = dateGenerator(3000)  # look back on the past X days
     with open('tickerList.csv', 'r') as f:
         for line in f:
             name.append(line)
     ruozhi = [datelist] * len(name)
-    pool = ThreadPool(10)
+    pool = ThreadPool(20)
     news = news_Reuters()
     pool.starmap(news.run, zip(ruozhi, name))
     pool.close()
